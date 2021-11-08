@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.jhalliday.wealsome</groupId>
+    <artifactId>wealsome-core</artifactId>
+    <version>0.0.1</version>
+
+    <name>Wealsome</name>
+    <description>Java/WebAssembly integration using panama</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <!-- try https://jdk.java.net/panama/ build 17-panama+3-167 (2021/5/18) -->
+        <jextract.path>/jdk-17-panama/bin/jextract</jextract.path>
+        <!-- try https://github.com/bytecodealliance/wasmtime/releases/tag/v0.30.0  c-api artifact -->
+        <wasmtime.path>/wasmtime-v0.30.0-x86_64-linux-c-api
+        </wasmtime.path>
+    </properties>
+
+    <build>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.0</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>3.0.0</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>3.2.0</version>
+                </plugin>
+
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <compilerArg>--add-modules=jdk.incubator.foreign</compilerArg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+
+                    <execution>
+                        <!-- mvn exec:exec@wasm -->
+                        <id>wasm</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${jextract.path}</executable>
+                            <arguments>
+                                <argument>-t</argument>
+                                <argument>com.github.jhalliday.wealsome.generated</argument>
+                                <argument>--header-class-name</argument>
+                                <argument>Wasm</argument>
+                                <argument>--source</argument>
+                                <argument>-d</argument>
+                                <argument>target/generated-sources</argument>
+                                <argument>--</argument>
+                                <argument>${wasmtime.path}/include/wasm.h</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <!-- mvn exec:exec@example -->
+                        <id>example</id>
+                        <goals>
+                            <!-- not java, since we need to fork to set jvm args -->
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>--add-modules=jdk.incubator.foreign</argument>
+                                <arguemnt>--enable-native-access=ALL-UNNAMED</arguemnt>
+                                <argument>-Djava.library.path=${wasmtime.path}/lib</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <!-- change the class name here to run a different example,
+                                    or copy the whole execution block and use a different id for each. -->
+                                <argument>com.github.jhalliday.wealsome.example.Hello</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                </executions>
+
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <dependencies>
+
+        <!-- https://github.com/jboss-logging/jboss-logging -->
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.4.1.Final</version>
+        </dependency>
+
+        <!-- https://logback.qos.ch/   Use resources/logback.xml to configure. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+</project>
